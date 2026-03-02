@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動抽獎轉盤</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 40px;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .wheel-box {
+            position: relative;
+        }
+        canvas {
+            border: 5px solid #333;
+            border-radius: 50%;
+            background-color: #fff;
+        }
+        /* 指針 */
+        .pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #ff4757;
+            z-index: 10;
+        }
+        .controls {
+            width: 300px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            resize: none;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #3742fa;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff4757;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>幸運大轉盤</h1>
+
+    <div class="container">
+        <div class="wheel-box">
+            <div class="pointer"></div>
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+            <div id="result">準備好抽獎了嗎？</div>
+        </div>
+
+        <div class="controls">
+            <h3>輸入獎項 (每行一個)</h3>
+            <textarea id="optionsInput">iPhone 15
+感謝惠顧
+100元禮券
+星巴克咖啡
+電影票
+大獎：PS5</textarea>
+            <button id="spinBtn">立即抽獎</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const optionsInput = document.getElementById('optionsInput');
+        const resultDisplay = document.getElementById('result');
+
+        let options = [];
+        let startAngle = 0;
+        let isSpinning = false;
+        const colors = ["#ff9f43", "#ee5253", "#10ac84", "#2e86de", "#5f27cd", "#f368e0", "#00d2d3", "#ff9ff3"];
+
+        function drawWheel() {
+            options = optionsInput.value.split('\n').filter(opt => opt.trim() !== '');
+            if (options.length === 0) return;
+
+            const arcSize = (2 * Math.PI) / options.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            options.forEach((text, i) => {
+                const angle = startAngle + i * arcSize;
+                
+                // 畫扇形
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(200, 200);
+                ctx.arc(200, 200, 190, angle, angle + arcSize);
+                ctx.fill();
+                ctx.stroke();
+
+                // 畫文字
+                ctx.save();
+                ctx.translate(200, 200);
+                ctx.rotate(angle + arcSize / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 16px Arial";
+                ctx.fillText(text, 170, 10);
+                ctx.restore();
+            });
+        }
+
+        function spin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            resultDisplay.innerText = "旋轉中...";
+
+            let speed = Math.random() * 0.4 + 0.3; // 隨機初始速度
+            const friction = 0.985; // 摩擦力 (減速)
+            
+            function animate() {
+                if (speed < 0.002) {
+                    isSpinning = false;
+                    spinBtn.disabled = false;
+                    determineWinner();
+                    return;
+                }
+
+                startAngle += speed;
+                speed *= friction;
+                drawWheel();
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function determineWinner() {
+            const arcSize = (2 * Math.PI) / options.length;
+            // 指針在上方 (1.5 * PI 位置)，計算相對轉盤的角度
+            // 由於 HTML Canvas 座標系與旋轉方向，邏輯如下：
+            let normalizedAngle = (1.5 * Math.PI - startAngle) % (2 * Math.PI);
+            while (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
+            
+            const index = Math.floor(normalizedAngle / arcSize);
+            const winner = options[index];
+            resultDisplay.innerText = `恭喜獲得：${winner}`;
+        }
+
+        // 初始化與監聽輸入
+        optionsInput.addEventListener('input', drawWheel);
+        spinBtn.addEventListener('click', spin);
+        drawWheel();
+    </script>
+
+</body>
+</html>
