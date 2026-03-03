@@ -117,8 +117,14 @@
         const colors = ["#ff9f43", "#ee5253", "#10ac84", "#2e86de", "#5f27cd", "#f368e0", "#00d2d3", "#ff9ff3"];
 
         function drawWheel() {
+            // 從輸入框獲取最新的名單
             options = optionsInput.value.split('\n').filter(opt => opt.trim() !== '');
-            if (options.length === 0) return;
+            
+            if (options.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                resultDisplay.innerText = "請輸入抽獎名單";
+                return;
+            }
 
             const arcSize = (2 * Math.PI) / options.length;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -126,15 +132,15 @@
             options.forEach((text, i) => {
                 const angle = startAngle + i * arcSize;
                 
-                // 畫扇形
                 ctx.beginPath();
                 ctx.fillStyle = colors[i % colors.length];
                 ctx.moveTo(200, 200);
                 ctx.arc(200, 200, 190, angle, angle + arcSize);
                 ctx.fill();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // 畫文字
                 ctx.save();
                 ctx.translate(200, 200);
                 ctx.rotate(angle + arcSize / 2);
@@ -147,19 +153,23 @@
         }
 
         function spin() {
-            if (isSpinning) return;
+            if (isSpinning || options.length <= 1) {
+                if (options.length <= 1 && !isSpinning) alert("至少需要兩個選項才能轉動喔！");
+                return;
+            }
+            
             isSpinning = true;
             spinBtn.disabled = true;
             resultDisplay.innerText = "旋轉中...";
 
-            let speed = Math.random() * 0.4 + 0.3; // 隨機初始速度
-            const friction = 0.985; // 摩擦力 (減速)
+            let speed = Math.random() * 0.4 + 0.3; 
+            const friction = 0.985; 
             
             function animate() {
                 if (speed < 0.002) {
                     isSpinning = false;
                     spinBtn.disabled = false;
-                    determineWinner();
+                    removeWinner(); // 核心修改：停止後移除名單
                     return;
                 }
 
@@ -171,19 +181,27 @@
             animate();
         }
 
-        function determineWinner() {
+        function removeWinner() {
             const arcSize = (2 * Math.PI) / options.length;
-            // 指針在上方 (1.5 * PI 位置)，計算相對轉盤的角度
-            // 由於 HTML Canvas 座標系與旋轉方向，邏輯如下：
             let normalizedAngle = (1.5 * Math.PI - startAngle) % (2 * Math.PI);
             while (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
             
             const index = Math.floor(normalizedAngle / arcSize);
             const winner = options[index];
-            resultDisplay.innerText = `恭喜獲得：${winner}`;
+
+            // 1. 顯示中獎結果
+            resultDisplay.innerText = `恭喜獲得：${winner} (已從清單移除)`;
+
+            // 2. 從陣列中移除該項
+            options.splice(index, 1);
+
+            // 3. 將修改後的名單同步回文字輸入框
+            optionsInput.value = options.join('\n');
+
+            // 4. 重新繪製轉盤（轉盤會立即縮減區塊）
+            drawWheel();
         }
 
-        // 初始化與監聽輸入
         optionsInput.addEventListener('input', drawWheel);
         spinBtn.addEventListener('click', spin);
         drawWheel();
